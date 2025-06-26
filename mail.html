@@ -1,0 +1,156 @@
+import 'package:flutter/material.dart';
+import 'package:audioplayers/audioplayers.dart';
+
+void main() => runApp(MyApp());
+
+class MyApp extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: '简易音乐播放器',
+      theme: ThemeData(
+        primarySwatch: Colors.blue,
+      ),
+      home: PlayerScreen(),
+    );
+  }
+}
+
+class PlayerScreen extends StatefulWidget {
+  @override
+  _PlayerScreenState createState() => _PlayerScreenState();
+}
+
+class _PlayerScreenState extends State<PlayerScreen> {
+  final AudioPlayer _audioPlayer = AudioPlayer();
+  Duration _position = Duration.zero;
+  Duration _duration = Duration.zero;
+  bool _isPlaying = false;
+  bool _isLooping = false;
+  List<String> _playlist = [
+    'https://example.com/song1.mp3',
+    'https://example.com/song2.mp3',
+    'https://example.com/song3.mp3'
+  ];
+  int _currentIndex = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _setupPlayer();
+  }
+
+  void _setupPlayer() {
+    _audioPlayer.onPlayerStateChanged.listen((PlayerState state) {
+      setState(() {
+        _isPlaying = state == PlayerState.playing;
+      });
+    });
+
+    _audioPlayer.onDurationChanged.listen((Duration d) {
+      setState(() {
+        _duration = d;
+      });
+    });
+
+    _audioPlayer.onPositionChanged.listen((Duration p) {
+      setState(() {
+        _position = p;
+      });
+    });
+  }
+
+  void _play() async {
+    await _audioPlayer.play(_playlist[_currentIndex]);
+  }
+
+  void _pause() async {
+    await _audioPlayer.pause();
+  }
+
+  void _stop() async {
+    await _audioPlayer.stop();
+    setState(() {
+      _position = Duration.zero;
+      _isPlaying = false;
+    });
+  }
+
+  void _next() {
+    _currentIndex = (_currentIndex + 1) % _playlist.length;
+    _play();
+  }
+
+  void _prev() {
+    _currentIndex = (_currentIndex - 1) % _playlist.length;
+    if (_currentIndex < 0) _currentIndex += _playlist.length;
+    _play();
+  }
+
+  void _seek(double seconds) {
+    final newPos = Duration(seconds: seconds.toInt());
+    _audioPlayer.seek(newPos);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: Text('音乐播放器')),
+      body: Padding(
+        padding: const EdgeInsets.all(20.0),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            // 播放进度条
+            Slider(
+              value: _position.inSeconds.toDouble(),
+              min: 0.0,
+              max: _duration.inSeconds.toDouble(),
+              onChanged: (value) => _seek(value),
+            ),
+            // 控制按钮
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                IconButton(
+                  icon: Icon(Icons.skip_previous),
+                  onPressed: _prev,
+                ),
+                IconButton(
+                  icon: Icon(_isPlaying ? Icons.pause : Icons.play_arrow),
+                  onPressed: _isPlaying ? _pause : _play,
+                ),
+                IconButton(
+                  icon: Icon(Icons.skip_next),
+                  onPressed: _next,
+                ),
+                IconButton(
+                  icon: Icon(_isLooping ? Icons.repeat_on : Icons.repeat),
+                  onPressed: () {
+                    setState(() {
+                      _isLooping = !_isLooping;
+                      _audioPlayer.setReleaseMode(_isLooping 
+                          ? ReleaseMode.loop 
+                          : ReleaseMode.release);
+                    });
+                  },
+                ),
+              ],
+            ),
+            // 播放信息
+            Text(
+              '${_position.toString().split('.')[0]} / '
+              '${_duration.toString().split('.')[0]}',
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  @override
+  void dispose() {
+    _audioPlayer.dispose();
+    super.dispose();
+  }
+}
